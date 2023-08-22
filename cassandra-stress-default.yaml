@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cassandra-stress-0
+  namespace: default
+  labels:
+    app: cassandra-stress
+spec:
+  template:
+    spec:
+      containers:
+      - name: cassandra-stress
+        image: cassandra:4.1
+        command:
+          - "/bin/bash"
+          - "-c"
+          - '/opt/cassandra/tools/bin/cassandra-stress write no-warmup n=10000000 cl=ONE -mode native cql3 connectionsPerHost=1 -col n=FIXED\(5\) size=FIXED\(64\)  -pop seq=1..10000000 -node "k8ssandra-dc1-all-pods-service.default.svc.cluster.local" -rate threads=50  -log file=/opt/cassandra/logs/cassandra-stress.load.data -schema "replication(factor=1)" -errors ignore; cat /opt/cassandra/logs/cassandra-stress.load.data'
+        resources:
+          limits:
+            cpu: 1
+            memory: 2G
+      restartPolicy: Never
+      nodeSelector:
+
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: cassandra-stress
+                topologyKey: kubernetes.io/hostname
+      tolerations:
+        - key: role
+          operator: Equal
+          value: cassandra-stress
+          effect: NoSchedule
